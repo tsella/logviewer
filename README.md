@@ -8,4 +8,4 @@ LogViewer streams predefined systemd daemons logs using journalctl, or logs from
 2. Copy `.env.example` -> `.env` and make changes. ALLOWED\_DAEMONS is a **comma separated** list of systemd daemons.
 3. `npm run build` to build
 
-4. Put it behind an inginx. Instructions to follow..
+4. Put it behind nginx. Instructions to follow..

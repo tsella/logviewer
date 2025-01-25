@@ -110,6 +110,11 @@ app.get('/api/logs/:type/:id', async (req, res) => {
     }
   }
   
+  // Validate ID format
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_.-]*$/.test(id)) {
+    return res.status(400).json({ error: 'Invalid ID format' });
+  }
+  
   // Set headers for SSE
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');

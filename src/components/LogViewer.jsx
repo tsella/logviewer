@@ -1,168 +1,9 @@
-// LogViewer.js
+// src/components/LogViewer.jsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-
-const THEME = {
-  background: '#1e1e1e',
-  border: '#3d3d3d',
-  text: '#e5e5e5',
-  success: '#23d18b',
-  error: '#f14c4c',
-  muted: '#666666',
-  highlight: '#11a8cd',
-  control: '#2d2d2d'
-};
-
-// ANSI color codes
-const COLORS = {
-  0: 'inherit',   // Reset
-  30: '#000000', // Black
-  31: '#cd3131', // Red
-  32: '#0dbc79', // Green
-  33: '#e5e510', // Yellow
-  34: '#2472c8', // Blue
-  35: '#bc3fbc', // Magenta
-  36: '#11a8cd', // Cyan
-  37: '#e5e5e5', // White
-  90: '#666666', // Bright Black
-  91: '#f14c4c', // Bright Red
-  92: '#23d18b', // Bright Green
-  93: '#f5f543', // Bright Yellow
-  94: '#3b8eea', // Bright Blue
-  95: '#d670d6', // Bright Magenta
-  96: '#29b8db', // Bright Cyan
-  97: '#ffffff'  // Bright White
-};
-
-const BG_COLORS = {
-  40: '#000000', // Black
-  41: '#cd3131', // Red
-  42: '#0dbc79', // Green
-  43: '#e5e510', // Yellow
-  44: '#2472c8', // Blue
-  45: '#bc3fbc', // Magenta
-  46: '#11a8cd', // Cyan
-  47: '#e5e5e5', // White
-  100: '#666666', // Bright Black
-  101: '#f14c4c', // Bright Red
-  102: '#23d18b', // Bright Green
-  103: '#f5f543', // Bright Yellow
-  104: '#3b8eea', // Bright Blue
-  105: '#d670d6', // Bright Magenta
-  106: '#29b8db', // Bright Cyan
-  107: '#ffffff'  // Bright White
-};
-
-function parseAnsiString(text) {
-  const result = [];
-  let currentSpan = { text: '', style: {} };
-  let buffer = '';
-  let inEscape = false;
-  let escapeCode = '';
-
-  function pushCurrentSpan() {
-    if (currentSpan.text) {
-      result.push({ ...currentSpan });
-      currentSpan = { text: '', style: { ...currentSpan.style } };
-    }
-  }
-
-  function processEscapeCode(code) {
-    const codes = code.split(';').map(num => parseInt(num, 10));
-    let style = { ...currentSpan.style };
-
-    for (let i = 0; i < codes.length; i++) {
-      const code = codes[i];
-      
-      if (code === 0) {
-        // Reset all attributes
-        style = {};
-      } else if (code === 1) {
-        style.fontWeight = 'bold';
-      } else if (code === 3) {
-        style.fontStyle = 'italic';
-      } else if (code === 4) {
-        style.textDecoration = 'underline';
-      } else if (COLORS[code]) {
-        style.color = COLORS[code];
-      } else if (BG_COLORS[code]) {
-        style.backgroundColor = BG_COLORS[code];
-      }
-    }
-
-    return style;
-  }
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-
-    if (char === '\x1b') {
-      inEscape = true;
-      escapeCode = '';
-      continue;
-    }
-
-    if (inEscape) {
-      if (char === '[') {
-        continue;
-      }
-
-      if (char === 'm') {
-        inEscape = false;
-        if (buffer) {
-          currentSpan.text = buffer;
-          pushCurrentSpan();
-          buffer = '';
-        }
-        currentSpan.style = processEscapeCode(escapeCode);
-        continue;
-      }
-
-      escapeCode += char;
-      continue;
-    }
-
-    buffer += char;
-  }
-
-  if (buffer) {
-    currentSpan.text = buffer;
-    pushCurrentSpan();
-  }
-
-  return result;
-}
-
-const LogEntry = React.memo(({ timestamp, identifier, message }) => {
-  const parsedSegments = parseAnsiString(message);
-  
-  return (
-    <div style={{
-      borderBottom: `1px solid ${THEME.border}`,
-      padding: '2px 0',
-      lineHeight: '1.2'
-    }}>
-      <span style={{ color: THEME.muted }}>
-        {timestamp}
-      </span>
-      {' '}
-      <span style={{ color: THEME.highlight }}>[{identifier}]</span>
-      {' '}
-      <span>
-        {parsedSegments.map((segment, index) => (
-          <span 
-            key={index} 
-            style={{
-              ...segment.style,
-              fontFamily: 'monospace'
-            }}
-          >
-            {segment.text}
-          </span>
-        ))}
-      </span>
-    </div>
-  );
-});
+import { THEME } from '../constants/theme';
+import LogEntry from './LogEntry';
+import SourceSelector from './SourceSelector';
+import StatusBar from './StatusBar';
 
 const LogViewer = () => {
   const [sources, setSources] = useState({ daemons: [], containers: [] });
@@ -190,11 +31,9 @@ const LogViewer = () => {
     }
   };
 
-  // Initialize sources polling
   useEffect(() => {
     fetchSources();
     pollIntervalRef.current = setInterval(fetchSources, 10000);
-    
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
@@ -202,7 +41,6 @@ const LogViewer = () => {
     };
   }, []);
 
-  // Scroll handling
   const handleScroll = useCallback((e) => {
     const element = e.target;
     const { scrollTop, scrollHeight, clientHeight } = element;
@@ -235,7 +73,6 @@ const LogViewer = () => {
     }
   }, [logs, autoScroll]);
 
-  // Handle source selection and log streaming
   useEffect(() => {
     if (!selectedSource) {
       if (eventSourceRef.current) {
@@ -341,86 +178,19 @@ const LogViewer = () => {
           Log Stream Viewer
         </h1>
         
-        <div style={{ margin: '20px 0' }}>
-          <select
-            style={{
-              padding: '8px',
-              marginRight: '10px',
-              fontFamily: 'monospace',
-              fontSize: '9pt',
-              minWidth: '400px',
-              background: THEME.control,
-              color: THEME.text,
-              border: `1px solid ${THEME.border}`,
-              borderRadius: '4px'
-            }}
-            onChange={(e) => {
-              if (e.target.value) {
-                const [type, id] = e.target.value.split(':');
-                const source = type === 'systemd' 
-                  ? sources.daemons.find(d => d.id === id)
-                  : sources.containers.find(c => c.id === id);
-                setSelectedSource(source);
-              } else {
-                setSelectedSource(null);
-              }
-            }}
-            value={selectedSource ? `${selectedSource.type}:${selectedSource.id}` : ''}
-          >
-            <option value="">Select a source</option>
-            <optgroup label="Systemd Services">
-              {sources.daemons.map(daemon => (
-                <option key={`systemd:${daemon.id}`} value={`systemd:${daemon.id}`}>
-                  {daemon.name}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="Docker Containers">
-              {sources.containers.map(container => (
-                <option key={`docker:${container.id}`} value={`docker:${container.id}`}>
-                  {container.name} ({container.status})
-                </option>
-              ))}
-            </optgroup>
-          </select>
-          <button
-            onClick={connectToLogs}
-            style={{
-              padding: '8px 16px',
-              fontFamily: 'monospace',
-              fontSize: '9pt',
-              background: THEME.control,
-              color: THEME.text,
-              border: `1px solid ${THEME.border}`,
-              cursor: 'pointer',
-              borderRadius: '4px'
-            }}
-          >
-            Connect
-          </button>
-        </div>
+        <SourceSelector
+          sources={sources}
+          selectedSource={selectedSource}
+          onSourceSelect={setSelectedSource}
+          onConnect={connectToLogs}
+        />
 
-        {error && (
-          <div style={{
-            color: THEME.error,
-            marginBottom: '10px',
-            fontFamily: 'monospace',
-            fontSize: '9pt'
-          }}>
-            {error}
-          </div>
-        )}
-
-        {isConnected && (
-          <div style={{
-            color: THEME.success,
-            marginBottom: '10px',
-            fontFamily: 'monospace',
-            fontSize: '9pt'
-          }}>
-            Connected to {selectedSource?.name} ({selectedSource?.type})
-          </div>
-        )}
+        <StatusBar
+          error={error}
+          isConnected={isConnected}
+          selectedSource={selectedSource}
+          autoScroll={autoScroll}
+        />
 
         <div
           ref={logsDivRef}
@@ -446,15 +216,6 @@ const LogViewer = () => {
               message={log.message}
             />
           ))}
-        </div>
-
-        <div style={{
-          textAlign: 'right',
-          marginTop: '5px',
-          fontSize: '9pt',
-          color: autoScroll ? THEME.success : THEME.muted
-        }}>
-          {autoScroll ? 'Auto-scrolling' : 'Scroll paused'}
         </div>
       </div>
     </>

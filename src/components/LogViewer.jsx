@@ -102,7 +102,11 @@ const LogViewer = () => {
     eventSource.onmessage = (event) => {
       try {
         const logEntry = JSON.parse(event.data);
-        setLogs(prevLogs => [...prevLogs.slice(-999), logEntry]);
+        setLogs(prevLogs => {
+          const newLogs = [...prevLogs, logEntry];
+          // Keep only last 1000 entries
+          return newLogs.slice(-1000);
+        });
       } catch (err) {
         console.error('Error parsing log entry:', err);
       }
@@ -121,7 +125,9 @@ const LogViewer = () => {
   }, [selectedSource]);
   
   const formatTimestamp = (timestamp) => {
-    if (!timestamp) return '';
+    if (!timestamp || isNaN(parseInt(timestamp))) {
+      return 'Invalid timestamp';
+    }
     try {
       const milliseconds = Math.floor(parseInt(timestamp) / 1000);
       const date = new Date(milliseconds);
